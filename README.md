@@ -9,6 +9,8 @@ No metal springs, no bearings. Optional conductive-filament pads let you light i
 
 Digital logic doesn’t have to be silicon. Babbage Cubes are **physical logic gates** that you can **see, touch, and reconfigure** like interlocking building bricks. Each cube is a self-contained mechanism that accepts **position-encoded inputs** (pushrods) and produces **position-encoded outputs**, all synchronized by a shared cam clock that couples through the stack.
 
+The Steampunk genre asks the question of how the world would be different today if Babbage's (very real) mechanical computers had taken off when they ere invented (two-hundred years ago) rather than being abandoned. Steampunk invites us to ask ourselves to imagine a world where the computer revolution happened during the industrial revolution. Today, we take silicon and electricity for granted, but actually we don't need either to build complete, working computers. We van even build robots that print and assemble and reconfigure out mechanical computers. Just imagine the possibilities!
+
 ---
 
 ## Repository Layout
