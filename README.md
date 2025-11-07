@@ -146,6 +146,122 @@ See `/assembly/` for photo steps.
 
 ---
 
+## Robot Assembly & Physical FPGA Workflow
+
+Turn Babbage Cubes into a robot-assembled, reconfigurable **physical FPGA**. This section specifies standardized grasp features, visual fiducials, and a simple plan/execute flow so a vision-guided arm can pick, place, rewire, and iterate designs.
+
+### Corner Grasp & Separation Standard (v0.1)
+
+* **Corner sockets (all 8 corners):** conical insets for kinematic grasp and magnet separation.
+
+  * Mouth Ø4.0 mm → tip Ø2.0 mm, depth 3.5 mm, 60° included angle.
+  * Socket center offset ~1.2 mm from the true vertex to allow a gentle **twist-lift** that breaks magnetic joints cleanly.
+  * Minimum wall to shell: ≥1.0 mm; internal fillet: 0.6 mm.
+* **Face approach chamfers:** 0.5 mm × 45° around each face; 0.2 mm lead-ins on all rod ports to avoid catching.
+* **Reference notches:** tiny relief at two consistent face corners for human tool access and coarse orientation.
+
+### Machine-Readable Markings & Fiducials
+
+* **Embossed orientation marks:** `A` (left), `B` (right), `Y` (front), and **clock direction** arrows on top/bottom. Minimum stroke 0.5 mm, height 0.6 mm.
+* **Gate glyphs:** standardized icons (“NAND”, “NOT”, etc.) centered on the **front** face.
+* **Binary fiducials (per face):** two square tags for detection under a single overhead or wrist camera:
+
+  * **Pose tag:** 12 mm square at top-left of the face frame (unique ID per cube instance during assembly).
+  * **Type tag:** 10 mm square at bottom-right encoding cube class/version (e.g., `NAND.v1`).
+  * Print as raised geometry for shadow contrast; dual-material prints may use the conductive filament for higher contrast.
+* **Face frame datum:** 1 mm raised perimeter with a small tick at the canonical +X edge for robust edge/pose estimation.
+
+### Robot Ops (Atomic Actions)
+
+* `pick(cube_id, pose, grasp=corner_2pin)` – engage two opposite corner sockets with conical pins.
+* `separate(target_pose, twist_deg=10–15)` – slight torsion to overcome magnet force before lift.
+* `place(target_pose, approach=planar, force_limit≤10 N)` – align via fiducials, press to contact, release.
+* `verify(face)` – confirm type/orientation via fiducials and embossed marks.
+* `nudge_rod(face, port, δ)` – tiny axial push to ensure rod seating if required.
+* `clock(steps)` – actuate a Clock cube (motorized or hand shaft) for test cycles.
+
+### Planner I/O (Design → Plan)
+
+**Cube library (example, JSON):**
+
+```json
+{
+  "cubes": [
+    {
+      "id": "NAND.v1",
+      "ports": {"A": "left.I1", "B": "right.I2", "Y": "front.O"},
+      "size_mm": 40,
+      "fiducials": {"pose": 101, "type": 201},
+      "clock": {"top_boss": true, "bottom_boss": true},
+      "grasp": "corner_2pin"
+    }
+  ]
+}
+```
+
+**Netlist/placement request (example):**
+
+```json
+{
+  "instances": [
+    {"name": "U1", "type": "NAND.v1"},
+    {"name": "U2", "type": "NOT.v1"}
+  ],
+  "nets": [
+    {"from": "U1.Y", "to": "U2.A"},
+    {"from": "U2.Y", "to": "U1.A"}
+  ],
+  "constraints": {"grid": "40mm", "rows": 3, "cols": 5}
+}
+```
+
+**Planner output (pick-and-place plan excerpt):**
+
+```json
+{
+  "operations": [
+    {"op": "pick", "ref": "U1", "from": "tray_1"},
+    {"op": "place", "ref": "U1", "to": {"row": 1, "col": 1, "yaw_deg": 0}},
+    {"op": "pick", "ref": "U2", "from": "tray_1"},
+    {"op": "place", "ref": "U2", "to": {"row": 1, "col": 2, "yaw_deg": 270}},
+    {"op": "place", "ref": "WIRE_1", "to": {"row": 1, "col": 1.5}},
+    {"op": "verify", "ref": "row1col1.front"},
+    {"op": "clock", "steps": 5}
+  ]
+}
+```
+
+### Assembly Pipeline (Physical FPGA Flow)
+
+1. **Inventory:** vision scans staging tray; reads **type tags**; builds available stock list.
+2. **Place/route:** translate netlist to a Manhattan grid; auto-insert **Wire/Crossover/Splitter** cubes; maintain continuous **clock rails**.
+3. **Build:** back-row to front-row placement; verify each placement by pose/ID; check rod freedom with a gentle tap.
+4. **Self-test:** run test vectors (Input cubes or manual rods), clock a few cycles, read **Indicator** cube flags with the camera.
+5. **Iterate:** router emits **diff**; robot performs surgical edits (pull/replace/move); re-test.
+
+### End-Effector (Minimal Design)
+
+* **Parallel jaws** with **two conical pins** (matching the corner sockets) on one jaw and **flat elastomer pads** on the other for planar placements.
+* **Adjustable pin span** to support 30/40/50 mm families.
+* **Wrist-mounted camera** (or calibrated overhead) aligned to jaw frame for accurate pose.
+
+### Tolerances & Targets
+
+* **Pose detection:** ≤ ±0.3 mm, ≤ ±2°.
+* **Placement gap:** ≤ 0.15 mm after magnet snap.
+* **Rod insertion force:** ≤ 1.5 N peak (use specified chamfers).
+* **Separation:** 10–15° twist typically overcomes corner magnet force for Ø5×3 mm magnets.
+
+### Safety & Robustness
+
+* **Over-travel guards** on internal latches to prevent accidental trips during placement.
+* **Anti-glare/anti-wear** lips on fiducials; matte surface finish preferred.
+* **Polarity sanity:** reference notches allow the vision system to reject mis-built cubes before placement.
+
+> See `/docs/robotics/` for fiducial sheets (SVG/PDF), end-effector STEP, JSON schemas, and a sample assembly plan for a 3-NOT ring oscillator.
+
+---
+
 ## Roadmap
 
 * v0.2: 30 mm and 50 mm cube families; improved magnet keying; parametric generators.
